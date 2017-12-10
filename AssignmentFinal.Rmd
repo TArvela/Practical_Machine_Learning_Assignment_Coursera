@@ -14,7 +14,7 @@ Thanks to activity trackers, it is now possible to easily collect data concernin
 
 #Code
 ###Libraries
-```{r echo=FALSE}
+```{r warning=FALSE, message=FALSE}
 library(caret); library(rattle); library(rpart); library(rpart.plot)
 library(randomForest); 
 ```
