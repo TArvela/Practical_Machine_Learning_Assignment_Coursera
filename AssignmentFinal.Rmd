@@ -1,0 +1,116 @@
+---
+title: "Machine Learning Project (Coursera)"
+author: "Tarvela"
+date: "9 December 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Introduction
+Thanks to activity trackers, it is now possible to easily collect data concerning our physical activity. This data is collected with pocket sided sensors and can be imported and analyzed using several algorithms. During this exercise, we are going to analyze a dataset of data collected with these devices. The goal of the exercise is to clean and interpret this data using machine learning algorithms and be able to classify data between different activities each user might have done during its usage.
+
+#Code
+###Libraries
+```{r echo=FALSE}
+library(caret); library(rattle); library(rpart); library(rpart.plot)
+library(randomForest); 
+```
+
+  
+###Import data
+The following code imports data from the website, stores it into a variable and converts some (un-usable) values into NA.
+```{r, cache=TRUE}
+set.seed(126052)
+train <- read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+test <- read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+
+train[train == "" | train == "NA" | train=="#DIV/0!"] <- NA
+test[test == "" | test == "NA" | test=="#DIV/0!"] <- NA
+```
+
+###Cleaning Data
+
+#####Removing missing values
+In this step the dataset will be cleaned, rows containing missing values will be eliminated. This process might be extreme because of the number of rows it removes, but since the datasets (both training and testing) are quite large it should not be a problem.
+
+```{r}
+train <- train[, colSums(is.na(train)) == 0]
+test <- test[, colSums(is.na(test)) == 0]
+```
+
+
+#####Removing useless data
+The first 7 columns are removed due to their inability to predict any data (mostly data concerning the user or time).
+```{r}
+train <- train[, -c(1:7)]
+test <- test[, -c(1:7)]
+```
+#####Remove highly correlated data
+As we have seen during the classes highly correlated data has very little utility for machine learning algorithms. The following code will find highly correlated columns and remove them from the training dataset.
+
+```{r}
+classeCol <-which(names(train) == "classe")
+training <- train[,-(findCorrelation(abs(cor(train[,-classeCol])),0.90))]
+```
+
+#####Second test dataset
+In order to verify results (and more importantly quantify them) we need a second dataset, the next code section will divide the train dataset into 2 datasets: "train" (used to train the machine learing algorithms) and "traintest" (used to verify the results and compare them with the reality).
+```{r}
+nb <- floor(0.75 * nrow(train))
+train_ind <- sample(seq_len(nrow(train)), size = nb)
+train <- train[train_ind, ]
+traintest <- train[-train_ind, ]
+```
+
+
+###Model Selection
+In this exercise, I will try two different algorithms to see the differences between each one. Multiple methods are possible, but I decided to try the "k-nearest neighbors" and the "random forest" algorithms.
+  
+  
+###Training
+The following lines of code will train the two models ("k-nearest neighbor" and "random forest"), if complexity were to increase a parameter optimization could have been done with a simple for loop.
+```{r cache=TRUE}
+##k-nearest neighbors
+controlKNN = trainControl(method = "adaptive_cv")
+knnTrained = train(classe ~ ., training, method = "knn", trControl = controlKNN)
+##Random forest
+controlRF = trainControl(method = "oob")
+RFTrained = train(classe ~ ., training, method = "rf", ntree = 200, trControl = controlRF)
+```
+###Testing
+The following code will try to predict the class of the test dataset using the previously built models.
+```{r}
+testknn <- predict(knnTrained, test)
+testRF <- predict(RFTrained, test)
+```
+
+###Results
+The two techniques resulted in the exact same results. Since their processing was completely different, one can assume that these results are significant in a way. 
+```{r}
+testknn
+testRF
+```
+
+###Error Estimation
+In the following lines, we are going to calculate the precision of our algorithms using the "traintest" dataset.
+
+```{r}
+traintestKnn <- predict(knnTrained, traintest)
+confusionMatrix(traintest$classe, traintestKnn)
+```
+  
+The KNN test shows a 97.25% accuracy when using the "traintest" dataset.
+
+```{r}
+traintestRF <- predict(RFTrained, traintest)
+confusionMatrix(traintest$classe, traintestRF)
+```
+
+The random forest model shows a 100% accuracy. This might seem a lot, but one should not forget that the "traintest" dataset might not be the best validation test of a model. 
+
+#Conclusion
+In this report, we successfully applied machine learning methods in order to classify activity trackers data with high accuracy. The test dataset was analyzed succesfully and the model was able to classify each one of the 20 rows of data.
+The accuracy of these models seems to be very high, further analysis (preferencially with new data) should be conducted to increase confidence in this results.
